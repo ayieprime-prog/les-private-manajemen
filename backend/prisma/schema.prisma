@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN_PUSAT
+  ADMIN_CABANG
+  TUTOR
+  ORTU
+}
+
+enum StatusAbsensi {
+  HADIR
+  ABSEN
+  TERLAMBAT
+}
+
+enum JenisPaket {
+  PER_SESI
+  PAKET_KREDIT
+  BULANAN
+}
+
+enum StatusPembayaran {
+  LUNAS
+  BELUM_LUNAS
+  JATUH_TEMPO
+}
+
+model Cabang {
+  id        String   @id @default(cuid())
+  nama      String
+  alamat    String?
+  telepon   String?
+  createdAt DateTime @default(now())
+
+  users         User[]
+  siswa         Siswa[]
+  jadwalSesi    JadwalSesi[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  nama         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  cabangId     String?
+  cabang       Cabang?  @relation(fields: [cabangId], references: [id])
+  createdAt    DateTime @default(now())
+
+  tutor       Tutor?
+  anakAsuh    Siswa[]  @relation("OrtuSiswa")
+}
+
+model Tutor {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  mapel        String
+  tarifPerSesi Int      @default(0)
+
+  jadwalSesi    JadwalSesi[]
+  laporan       LaporanPerkembangan[]
+  penggajian    Penggajian[]
+}
+
+model Siswa {
+  id            String   @id @default(cuid())
+  nama          String
+  tanggalLahir  DateTime?
+  cabangId      String
+  cabang        Cabang   @relation(fields: [cabangId], references: [id])
+  ortuId        String?
+  ortu          User?    @relation("OrtuSiswa", fields: [ortuId], references: [id])
+  createdAt     DateTime @default(now())
+
+  pesertaSesi   PesertaSesi[]
+  paket         PaketLangganan[]
+  pembayaran    Pembayaran[]
+  laporan       LaporanPerkembangan[]
+}
+
+model JadwalSesi {
+  id         String   @id @default(cuid())
+  cabangId   String
+  cabang     Cabang   @relation(fields: [cabangId], references: [id])
+  tutorId    String
+  tutor      Tutor    @relation(fields: [tutorId], references: [id])
+  mapel      String
+  tanggal    DateTime
+  jamMulai   String
+  jamSelesai String
+  kapasitas  Int      @default(1)
+  createdAt  DateTime @default(now())
+
+  peserta    PesertaSesi[]
+}
+
+model PesertaSesi {
+  id           String     @id @default(cuid())
+  jadwalSesiId String
+  jadwalSesi   JadwalSesi @relation(fields: [jadwalSesiId], references: [id])
+  siswaId      String
+  siswa        Siswa      @relation(fields: [siswaId], references: [id])
+
+  absensi      Absensi?
+
+  @@unique([jadwalSesiId, siswaId])
+}
+
+model Absensi {
+  id             String        @id @default(cuid())
+  pesertaSesiId  String        @unique
+  pesertaSesi    PesertaSesi   @relation(fields: [pesertaSesiId], references: [id])
+  status         StatusAbsensi
+  catatan        String?
+  dicatatPadaJam DateTime      @default(now())
+}
+
+model PaketLangganan {
+  id             String     @id @default(cuid())
+  siswaId        String
+  siswa          Siswa      @relation(fields: [siswaId], references: [id])
+  jenis          JenisPaket
+  sisaKredit     Int?
+  jumlahPerBulan Int?
+  tanggalMulai   DateTime   @default(now())
+
+  pembayaran     Pembayaran[]
+}
+
+model Pembayaran {
+  id          String           @id @default(cuid())
+  siswaId     String
+  siswa       Siswa            @relation(fields: [siswaId], references: [id])
+  paketId     String?
+  paket       PaketLangganan?  @relation(fields: [paketId], references: [id])
+  jumlah      Int
+  periode     String
+  metode      String?
+  status      StatusPembayaran @default(BELUM_LUNAS)
+  tanggalBayar DateTime?
+  createdAt   DateTime         @default(now())
+}
+
+model LaporanPerkembangan {
+  id          String   @id @default(cuid())
+  siswaId     String
+  siswa       Siswa    @relation(fields: [siswaId], references: [id])
+  tutorId     String
+  tutor       Tutor    @relation(fields: [tutorId], references: [id])
+  mapel       String
+  periode     String
+  targetAwal  String?
+  pencapaian  String?
+  catatan     String?
+  createdAt   DateTime @default(now())
+}
+
+model Penggajian {
+  id           String   @id @default(cuid())
+  tutorId      String
+  tutor        Tutor    @relation(fields: [tutorId], references: [id])
+  periode      String
+  jumlahSesi   Int
+  totalGaji    Int
+  statusLunas  Boolean  @default(false)
+  tanggalBayar DateTime?
+  createdAt    DateTime @default(now())
+}
