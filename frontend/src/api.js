@@ -1,4 +1,4 @@
-const BASE = "/api";
+const BASE = process.env.VITE_API_URL || "https://backend-production-25cb.up.railway.app";
 
 function getToken() {
   return localStorage.getItem("token");
